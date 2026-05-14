@@ -90,6 +90,9 @@ public class GuiButtonsArmorStation extends GuiSideButtons {
     @Override
     @SuppressWarnings("unchecked")
     protected void actionPerformed(GuiButton button) throws IOException {
+        if(button instanceof GuiButtonItem && parent.getContainer().getTile().isDeconstructing() && ((GuiButtonItem<ArmorBuildGuiInfo>) button).data.armor != null) {
+            return;
+        }
         for (Object o : buttonList) {
             if (o instanceof GuiButtonItem) {
                 ((GuiButtonItem<ArmorBuildGuiInfo>) o).pressed = false;

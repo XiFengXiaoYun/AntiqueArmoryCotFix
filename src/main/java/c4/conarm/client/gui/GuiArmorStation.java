@@ -56,6 +56,7 @@ import slimeknights.mantle.client.gui.GuiElement;
 import slimeknights.mantle.client.gui.GuiElementScalable;
 import slimeknights.mantle.client.gui.GuiModule;
 import slimeknights.tconstruct.common.TinkerNetwork;
+import slimeknights.tconstruct.common.config.Config;
 import slimeknights.tconstruct.library.TinkerRegistry;
 import slimeknights.tconstruct.library.Util;
 import slimeknights.tconstruct.library.client.Icons;
@@ -84,6 +85,9 @@ public class GuiArmorStation extends GuiTinkerStation
     private static final GuiElement ItemCover = new GuiElement(176, 18, 80, 64);
     private static final GuiElement SlotBackground = new GuiElement(176, 0, 18, 18);
     private static final GuiElement SlotBorder = new GuiElement(194, 0, 18, 18);
+
+    private static final GuiElement ArrowLeft = new GuiElement(8, 241, 8, 15, 256, 256);
+    private static final GuiElement ArrowRight = new GuiElement(0, 241, 8, 15, 256, 256);
 
     private static final GuiElement SlotSpaceTop = new GuiElement(0, 174 + 2, 18, 2);
     private static final GuiElement SlotSpaceBottom = new GuiElement(0, 174, 18, 2);
@@ -493,9 +497,28 @@ public class GuiArmorStation extends GuiTinkerStation
         GlStateManager.color(1.0f, 1.0f, 1.0f, 0.82f);
         ItemCover.draw(this.cornerX + 7, this.cornerY + 18);
 
-        GlStateManager.color(1.0f, 1.0f, 1.0f, 0.28f);
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        ContainerArmorStation container = (ContainerArmorStation) inventorySlots;
+        if (container.getSelectedArmor() != null || !Config.deconstructTools) {
+            ArrowRight.draw(cornerX + 104, cornerY + 38);
+        } else if (container.getTile().isDeconstructing()) {
+            ArrowLeft.draw(cornerX + 82, cornerY + 38);
+        } else if (container.getTile().isInventoryEmpty()) {
+            ArrowRight.draw(cornerX + 104, cornerY + 38);
+            if (Config.deconstructTools) {
+                ArrowLeft.draw(cornerX + 82, cornerY + 38);
+            }
+        } else {
+            ArrowRight.draw(cornerX + 104, cornerY + 38);
+        }
+
         for(int i = 0; i < activeSlots; i++) {
             Slot slot = inventorySlots.getSlot(i);
+            if(container.getTile().isDeconstructing() && !slot.getHasStack()) {
+                GlStateManager.color(1.0f, 1.0f, 1.0f, 0.58f);
+            } else {
+                GlStateManager.color(1.0f, 1.0f, 1.0f, 0.28f);
+            }
             SlotBackground.draw(x + this.cornerX + slot.xPos - 1, y + this.cornerY + slot.yPos - 1);
         }
 
@@ -516,7 +539,7 @@ public class GuiArmorStation extends GuiTinkerStation
         else if(currentInfo.armor.getItem() instanceof TinkersArmor) {
             for(int i = 0; i < activeSlots; i++) {
                 Slot slot = inventorySlots.getSlot(i);
-                if(!(slot instanceof SlotArmorStationIn)) {
+                if(!(slot instanceof SlotArmorStationIn) || container.getTile().isDeconstructing()) {
                     continue;
                 }
 
@@ -572,8 +595,11 @@ public class GuiArmorStation extends GuiTinkerStation
 //    }
 
     protected void drawRepairSlotIcons() {
+        ContainerArmorStation container = (ContainerArmorStation) inventorySlots;
         for(int i = 0; i < activeSlots; i++) {
-            drawRepairSlotIcon(i);
+            if(!container.getTile().isDeconstructing()) {
+                drawRepairSlotIcon(i);
+            }
         }
     }
 
@@ -710,5 +736,10 @@ public class GuiArmorStation extends GuiTinkerStation
                 this.drawTexturedModalRect(this.x, this.y, j, i, this.width, this.height);
             }
         }
+    }
+
+    @Override
+    public ContainerArmorStation getContainer() {
+        return (ContainerArmorStation) super.getContainer();
     }
 }

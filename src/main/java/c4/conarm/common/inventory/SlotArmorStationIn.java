@@ -47,7 +47,8 @@ public class SlotArmorStationIn extends Slot
     }
 
     public boolean isItemValid(final ItemStack stack) {
-        if (this.dormant) {
+        // we also dont want stuff to be put in while a deconstruction is happening
+        if (this.dormant || ((ContainerArmorStation) parent).getTile().isDeconstructing()) {
             return false;
         }
         if (this.restriction != null) {

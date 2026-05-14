@@ -35,7 +35,10 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.StringUtils;
 import net.minecraft.world.WorldServer;
@@ -44,11 +47,13 @@ import slimeknights.mantle.util.ItemStackList;
 import slimeknights.tconstruct.TConstruct;
 import slimeknights.tconstruct.common.Sounds;
 import slimeknights.tconstruct.common.TinkerNetwork;
+import slimeknights.tconstruct.common.config.Config;
 import slimeknights.tconstruct.library.Util;
 import slimeknights.tconstruct.library.events.TinkerCraftingEvent;
 import slimeknights.tconstruct.library.modifiers.TinkerGuiException;
 import slimeknights.tconstruct.library.tinkering.IRepairable;
 import slimeknights.tconstruct.library.tinkering.PartMaterialType;
+import slimeknights.tconstruct.library.tools.IToolPart;
 import slimeknights.tconstruct.library.utils.TagUtil;
 import slimeknights.tconstruct.library.utils.ToolBuilder;
 import slimeknights.tconstruct.tools.common.inventory.ContainerTinkerStation;
@@ -167,7 +172,27 @@ public class ContainerArmorStation extends ContainerTinkerStation<TileArmorStati
             if (result.isEmpty()) {
                 result = this.buildArmor();
             }
-            this.out.inventory.setInventorySlotContents(0, result);
+            ItemStack outputStack = out.getStack();
+            if(!result.isEmpty()) {
+                out.inventory.setInventorySlotContents(0, result);
+            } else if(Config.deconstructTools && !outputStack.isEmpty() && outputStack.getItem() instanceof TinkersArmor && out.isToolForDeconstruction) {
+                out.isToolForDeconstruction = false;
+                if(deconstructArmor()) {
+                    NonNullList<ItemStack> parts = getDeconstructedParts(outputStack);
+                    for(int i = 0; i < tile.getSizeInventory() && i < parts.size(); i++) {
+                        tile.setInventorySlotContents(i, parts.get(i));
+                    }
+                } else {
+                    for(int i = 0; i < tile.getSizeInventory(); i++) {
+                        tile.setInventorySlotContents(i, ItemStack.EMPTY);
+                    }
+                    out.inventory.setInventorySlotContents(0, outputStack);
+                }
+                tile.setDeconstructingStack(out.inventory.getStackInSlot(0));
+            } else {
+                out.inventory.setInventorySlotContents(0, ItemStack.EMPTY);
+                tile.setDeconstructingStack(out.inventory.getStackInSlot(0));
+            }
             this.updateGUI();
         }
         catch (TinkerGuiException e) {
@@ -194,8 +219,13 @@ public class ContainerArmorStation extends ContainerTinkerStation<TileArmorStati
         }
         if (resultTaken) {
             this.updateSlotsAfterArmorAction();
-        }
-        else {
+        } else if(tile.isDeconstructing()) {
+            // player took armor back out after deconstruction, clear deconstructing state
+            for(int i = 0; i < tile.getSizeInventory(); i++) {
+                tile.setInventorySlotContents(i, ItemStack.EMPTY);
+            }
+            tile.setDeconstructingStack(ItemStack.EMPTY);
+        } else {
             try {
                 final ItemStack tool = this.buildArmor();
                 if (!tool.isEmpty()) {
@@ -313,7 +343,104 @@ public class ContainerArmorStation extends ContainerTinkerStation<TileArmorStati
         return input;
     }
 
+    @Override
     public boolean canMergeSlot(final ItemStack stack, final Slot slot) {
-        return slot != this.out && super.canMergeSlot(stack, slot);
+        if(slot == this.out || tile.isDeconstructing() && slot instanceof SlotArmorStationIn) {
+            return false;
+        }
+        return super.canMergeSlot(stack, slot);
+    }
+
+    public List<ItemStack> getInputSlotContents() {
+        NonNullList<ItemStack> contents = NonNullList.create();
+        for(Slot slot : inventorySlots) {
+            if(slot instanceof SlotArmorStationIn && !slot.getStack().isEmpty()) {
+                contents.add(slot.getStack());
+            }
+        }
+        return contents;
+    }
+
+    public ArmorCore getSelectedArmor() {
+        return selectedArmor;
+    }
+
+    private boolean deconstructArmor() throws TinkerGuiException {
+        ItemStack armorStack = out.getStack();
+
+        if(this.selectedArmor != null) {
+            return false;
+        }
+        if(armorStack.isEmpty() || !(armorStack.getItem() instanceof TinkersArmor)) {
+            return false;
+        }
+
+        TinkersArmor armor = (TinkersArmor) armorStack.getItem();
+        NBTTagList materials = TagUtil.getBaseMaterialsTagList(armorStack);
+        if(materials.tagCount() == 0) {
+            return false;
+        }
+
+        for(int i = 0; i < activeSlots; i++) {
+            if(!tile.getStackInSlot(i).isEmpty()) {
+                throw new TinkerGuiException(Util.translate("gui.error.input_slots_not_empty"));
+            }
+        }
+
+        List<PartMaterialType> requiredComponents = armor.getArmorBuildComponents();
+        if(requiredComponents.size() > activeSlots) {
+            return false;
+        }
+
+        // verify all parts can be reconstructed before committing
+        for(int i = 0; i < materials.tagCount() && i < requiredComponents.size(); i++) {
+            String materialId = materials.getStringTagAt(i);
+            PartMaterialType pmt = requiredComponents.get(i);
+            boolean found = false;
+            for(IToolPart part : pmt.getPossibleParts()) {
+                ItemStack testStack = new ItemStack((Item) part);
+                if(testStack.getItem() instanceof IToolPart) {
+                    NBTTagCompound nbt = TagUtil.getTagSafe(testStack);
+                    nbt.setString("Material", materialId);
+                    testStack.setTagCompound(nbt);
+                    if(pmt.isValid(testStack)) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if(!found) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private NonNullList<ItemStack> getDeconstructedParts(ItemStack armorStack) {
+        NonNullList<ItemStack> parts = NonNullList.create();
+        if(!(armorStack.getItem() instanceof TinkersArmor)) {
+            return parts;
+        }
+        TinkersArmor armor = (TinkersArmor) armorStack.getItem();
+        NBTTagList materials = TagUtil.getBaseMaterialsTagList(armorStack);
+        List<PartMaterialType> requiredComponents = armor.getArmorBuildComponents();
+        for(int i = 0; i < materials.tagCount() && i < requiredComponents.size(); i++) {
+            String materialId = materials.getStringTagAt(i);
+            PartMaterialType pmt = requiredComponents.get(i);
+            for(IToolPart part : pmt.getPossibleParts()) {
+                ItemStack testStack = new ItemStack((Item) part);
+                if(testStack.getItem() instanceof IToolPart) {
+                    NBTTagCompound nbt = TagUtil.getTagSafe(testStack);
+                    nbt.setString("Material", materialId);
+                    testStack.setTagCompound(nbt);
+                    if(pmt.isValid(testStack)) {
+                        parts.add(testStack);
+                        break;
+                    }
+                }
+            }
+        }
+        return parts;
     }
 }
