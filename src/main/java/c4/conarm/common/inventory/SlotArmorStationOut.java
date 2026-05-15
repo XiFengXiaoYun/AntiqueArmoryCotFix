@@ -33,10 +33,9 @@ import slimeknights.tconstruct.library.utils.ToolHelper;
 
 import javax.annotation.Nonnull;
 
-public class SlotArmorStationOut extends Slot
-{
+public class SlotArmorStationOut extends Slot {
     public ContainerArmorStation parent;
-    public boolean isToolForDeconstruction = false;
+    public boolean isArmorForDeconstruction = false;
 
     public SlotArmorStationOut(final int index, final int xPosition, final int yPosition, final ContainerArmorStation container) {
         super(new InventoryCraftResult(), index, xPosition, yPosition);
@@ -61,7 +60,7 @@ public class SlotArmorStationOut extends Slot
         super.putStack(stack);
         // trigger craft matrix update and sync when armor is placed in the output slot
         if(isItemValid(stack)) {
-            this.isToolForDeconstruction = true;
+            this.isArmorForDeconstruction = true;
             parent.onCraftMatrixChanged(parent.getTile());
             parent.detectAndSendChanges();
         }
@@ -89,6 +88,7 @@ public class SlotArmorStationOut extends Slot
     }
 
     @Nonnull
+    @Override
     public ItemStack onTake(final EntityPlayer playerIn, @Nonnull final ItemStack stack) {
         FMLCommonHandler.instance().firePlayerCraftingEvent(playerIn, stack, this.parent.getTile());
         this.parent.onResultTaken(playerIn, stack);

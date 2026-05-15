@@ -76,8 +76,11 @@ item.conarm.frosty_soles.tooltip=Frosty Modifier
 gui.armorforge.name=Armor Forge
 gui.armorstation.name=Armor Station
 gui.armorstation.preview=Preview
+gui.armorstation.deconstruct=Deconstruct
+gui.armorstation.deconstruct.info=Place armor in the output slot on the right to deconstruct it if the armor:\n- Is undamaged\n- Can be built in the current table\n- Is not a sealed artifact (Tinkers' Evolution)\n- Has enough XP (Tinkers' Tool Leveling)
 
 gui.error.modifier_on_station=Modifiers can only be applied on the Armor Forge.
+gui.warning.deconstruct_armor=§cTaking this armor apart will destroy all modifiers and traits!
 
 #################
 #     Armor     #

@@ -316,7 +316,11 @@ public class GuiArmorStation extends GuiTinkerStation
 //            appearances = null;
 //        }
 
-        if(armorStack.getItem() instanceof IArmorModifyable) {
+        // current armor to deconstruct
+        if(Config.deconstructTools && container.getTile().isDeconstructing()) {
+            warning(Util.translate("gui.warning.deconstruct_armor"));
+        }
+        else if(armorStack.getItem() instanceof IArmorModifyable) {
             if(armorStack.getItem() instanceof IToolStationDisplay) {
                 IToolStationDisplay armor = (IToolStationDisplay) armorStack.getItem();
                 armorInfo.setCaption(armor.getLocalizedName());
@@ -365,18 +369,23 @@ public class GuiArmorStation extends GuiTinkerStation
             armorInfo.setCaption(Util.translate("gui.toolstation.repair"));
             armorInfo.setText();
 
-            traitInfo.setCaption(null);
-            String c = TextFormatting.DARK_GRAY.toString();
-            String[] art = new String[]{
-                    c + "",
-                    c + "",
-                    c + "       .",
-                    c + "     /( _________",
-                    c + "     |  >:=========`",
-                    c + "     )(  ",
-                    c + "     \"\""
-            };
-            traitInfo.setText(art);
+            if(Config.deconstructTools) {
+                traitInfo.setCaption(Util.translate("gui.armorstation.deconstruct"));
+                traitInfo.setText(Util.translate("gui.armorstation.deconstruct.info"));
+            } else {
+                traitInfo.setCaption(null);
+                String c = TextFormatting.DARK_GRAY.toString();
+                String[] art = new String[]{
+                        c + "",
+                        c + "",
+                        c + "       .",
+                        c + "     /( _________",
+                        c + "     |  >:=========`",
+                        c + "     )(  ",
+                        c + "     \"\""
+                };
+                traitInfo.setText(art);
+            }
         }
         else {
             ArmorCore armor = (ArmorCore) currentInfo.armor.getItem();

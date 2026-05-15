@@ -30,8 +30,7 @@ import slimeknights.tconstruct.library.tools.IToolPart;
 
 import java.util.Iterator;
 
-public class SlotArmorStationIn extends Slot
-{
+public class SlotArmorStationIn extends Slot {
     public boolean dormant;
     public PartMaterialType restriction;
     public ItemStack icon;
@@ -47,10 +46,13 @@ public class SlotArmorStationIn extends Slot
     }
 
     public boolean isItemValid(final ItemStack stack) {
+        // dormant slots don't take any items, they can only be taken out of
         // we also dont want stuff to be put in while a deconstruction is happening
         if (this.dormant || ((ContainerArmorStation) parent).getTile().isDeconstructing()) {
             return false;
         }
+
+        // otherwise we check if we have item info and restrict it to that
         if (this.restriction != null) {
             return stack != null && stack.getItem() instanceof IToolPart && this.restriction.isValidItem((IToolPart)stack.getItem());
         }
